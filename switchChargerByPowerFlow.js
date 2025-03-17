@@ -32,7 +32,7 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
         // Debug Ausgabe zur Prüfung der Werte
         print("--> Es wird nicht geladen und das Laden soll starten: ", pvSurplusTimeCycles, " | ", noPvSurplusTimeCycles);
 
-        // PV Überschuss sollte stabil über mindestens 2 Zyklen sein um den Ladevorgang zu starten. Verhindert ständiges an und aus schalten der Wallbox
+        // PV Überschuss sollte stabil über mindestens 2 Zyklen sein um den Ladevorgang zu starten. Verhindert ständiges an und aus schalten des Aufladers
         if( pvSurplusTimeCycles >= cycles ) {
             Shelly.call("Switch.set", {'id': 0, 'on': true}); // Auflader anschalten und damit Starten des Ladens
             isCharging = true;
@@ -60,7 +60,7 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
         // Debug Ausgabe zur Prüfung der Werte
         print("--> Es wird geladen und das Laden soll angehalten werden: ", pvSurplusTimeCycles, " | ", noPvSurplusTimeCycles);
 
-        // Bei mindestens 2 Zyklen ohne Überschuss wird der Ladevorgang angehalten. Verhindert ständiges an und aus schalten der Wallbox
+        // Bei mindestens 2 Zyklen ohne Überschuss wird der Ladevorgang angehalten. Verhindert ständiges an und aus schalten des Aufladers
         if( noPvSurplusTimeCycles >= cycles ) {
             Shelly.call("Switch.set", {'id': 0, 'on': false}); // Auflader abschalten und damit Stoppen des Ladens
             isCharging = false;
@@ -118,7 +118,7 @@ function process() {
                         // JSON-Dokument parsen
                         let jsonData = JSON.parse(response.body);
                                        
-                        // PV Überschuss Prüfung und nach Regeln die Wallbox an oder aus schalten
+                        // Auflader An/Aus Schalter Funktion mit Ergebnissen aus API aufrufen
                         switchChargerByPowerFlow(jsonData.siteCurrentPowerFlow.connections,
                                                  jsonData.siteCurrentPowerFlow.GRID,
                                                  jsonData.siteCurrentPowerFlow.LOAD,
