@@ -1,4 +1,4 @@
-const runInterval = 3; // Skript läuft alle x Minuten
+const runInterval = 3; // Intervall in Minuten in dem das Skript läuft
 const cycles = 3; // Anzahl der Zyklen die erreicht werden müssen bis das Laden startet bzw. stopt
 const thresholdPvProduction = 3.5; // definiert die PV Produktion in kW ab der geladen werden kann
 const thresholdDeltaPvLoad = 3; // definiert die Ziel Differenz zwischen PV Produktion und dem Hausverbrauch zum Ladestart
@@ -163,7 +163,7 @@ function process() {
 };
 
 Timer.set(
-    1000 * 60 * runInterval, // Wiederholung in Millisekunden: Alle 3 Minuten (1000 * 60 * 3)
+    1000 * 60 * runInterval, // Wiederholung in Millisekunden
     true, // Timer wiederholen?
     process // Funktion die in jedem Zyklus aufgerufen wird
 );
