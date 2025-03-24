@@ -2,7 +2,7 @@
 ## Ressourcen
  + Der Auflader ist ein einphasiger Schuko 3kW, 13A Ladeziegel.
  + Das Skript läuft auf einem Shelly Pro EM 50 und schaltet per Schütz eine Steckdose stromführend oder stromlos.
- + Zur Abfrage des PV Ertrags wird die Solar Edge Monitoring API verwendet. Die Variablen `siteId` und `apiKey` sind für den API Aufruf natürlich zu ersetzen.
+ + Zur Abfrage des PV Ertrags wird die Solar Edge Monitoring API verwendet.
 
 ## Grober Ablauf
 Das Skript startet einen Timer der in einem konfigurierbarem Intervall läuft, dann die Monitoring API abfragt und gemäß dem Messergebniss sowie den konfigurierbaren Parametern (Hausverbruach, Überschuss, etc.) den Auflader an oder aus schaltet.
@@ -21,3 +21,7 @@ Das Skript startet einen Timer der in einem konfigurierbarem Intervall läuft, d
 ### Wann stopt das Laden bzw. wann wird die Steckdose stromlos geschaltet?
  + Nachdem 3 Zyklen mit folgenden Bedingungen erreicht sind:
     + die aktuelle PV Produktion ist kleiner eines Schwellwerts. Der Schwellwert ist der Ladeleistung des Ladeziegel (3 kW) plus durchschnittlicher Hausverbrauch (0.5 kW) gleichgesetzt, also bei 3.5 kW.
+
+## NUtzung
++ Die Variablen `siteId` und `apiKey` sind für den API Aufruf mit korrekten Werten zu ersetzen.
++ Die globalen Variablen können nach Bedarf angepasst werden.
