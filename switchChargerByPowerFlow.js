@@ -1,14 +1,18 @@
-const runInterval = 3;               // Intervall in Minuten in dem das Skript läuft
-const cycles = 3;                    // Anzahl der Zyklen die erreicht werden müssen bis das Laden startet bzw. stopt
+/// Globale Variablen
+const runInterval = 3;               // Intervall in Minuten in dem das Skript ausgeführt wird
+const fromHour = 9;                  // Stunde ab der die Abfrage der API und starten des Prozesses stattfindet
+const toHour = 20;                   // Stunde bis zu der die Abfrage der API und starten des Prozesses stattfindet
+
 const thresholdPvProduction = 3.5;   // definiert die PV Produktion in kW ab der geladen werden kann
 const thresholdDeltaPvLoad = 3;      // definiert die Ziel Differenz zwischen PV Produktion und dem Hausverbrauch zum Ladestart
 const thresholdStorageLevel = 20;    // definiert den Speicherfüllstand in % ab dem geladen werden kann
-const fromHour = 9;                  // Stunde ab der die Abfrage der API und starten des Prozesses stattfindet
-const toHour = 20;                   // Stunde bis zu der die Abfrage der API und starten des Prozesses stattfindet
-let pvSurplusTimeCycles = 0;         // Anzahl Timer Zyklen bevor das Laden startet
-let noPvSurplusTimeCycles = 0;       // Anzahl Timer Zyklen bevor das Laden stoppt
+
+const targetCycles = 3;              // Anzahl der Zyklen die erreicht werden müssen bis das Laden startet bzw. stopt
+let cyclesBeforeLoadingStarts = 0;   // Anzahl Timer Zyklen bevor das Laden starten soll
+let cyclesBeforeLoadingStops = 0;    // Anzahl Timer Zyklen bevor das Laden stoppen soll
 let isCharging = false;              // Ladestatus "wird geladen" oder "wird nicht geladen"
 
+/// Nach definierten Parametern (Hausverbruach, Überschuss, etc.) den Auflader "an"" oder "aus"" schalten
 function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
     // Abfrage ob Netzeinspeisung vorliegt
     gridFeedIn = connections.some(function(conn) {
@@ -32,81 +36,93 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
           "GridFeedIn : ", gridFeedIn ? "YES" : "NO");               // Netzeinspeisung vorhanden oder nicht
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Es wird nicht geladen und das Laden soll starten
+    // Es wird nicht geladen und das Laden soll starten.
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
-    if( PV.currentPower >= thresholdPvProduction &&       // PV Produktion größer Schwellwert
-        PV.currentPower > LOAD.currentPower &&            // PV Produktion größer Hausverbrauch     
-        STORAGE.chargeLevel >= thresholdStorageLevel &&   // Speicher voller als Schwellwert
-        currentDeltaPvLoad >= thresholdDeltaPvLoad &&     // Delta zwischen PV Produktion und Hausverbrauch größer Schwellwert
-        gridConsumption == false &&                       // Kein Netzbezug
-        isCharging == false ) {                           // es wird nicht geladen
+    if( PV.currentPower >= thresholdPvProduction &&       // PV Produktion größer-gleich PV Schwellwert
+        PV.currentPower > LOAD.currentPower &&            // PV Produktion größer Hausverbrauch
+        currentDeltaPvLoad >= thresholdDeltaPvLoad &&     // Delta zwischen PV Produktion und Hausverbrauch größer-gleich Delta Schwellwert
+        STORAGE.chargeLevel >= thresholdStorageLevel &&   // Speicherfüllgrad größer-gleich als Speicher Schwellwert        
+        isCharging == false ) {                           // Es wird nicht geladen
         
-        // Überschuss Zyklus Zähler inkrementieren
-        pvSurplusTimeCycles = pvSurplusTimeCycles + 1;
+        cyclesBeforeLoadingStarts = cyclesBeforeLoadingStarts + 1;
         
         // Debug Ausgabe zur Prüfung der Werte
-        print("--> Es wird nicht geladen und das Laden soll starten: ", pvSurplusTimeCycles, " | ", noPvSurplusTimeCycles);
+        print("--> Es wird nicht geladen und das Laden soll starten: ",
+              "Zyklen Start: ", cyclesBeforeLoadingStarts, " | ",
+              "Zyklen Stop: ", cyclesBeforeLoadingStops);
 
         // PV Überschuss sollte stabil über mindestens 2 Zyklen sein um den Ladevorgang zu starten. Verhindert ständiges an und aus schalten des Aufladers
-        if( pvSurplusTimeCycles >= cycles ) {
+        if( cyclesBeforeLoadingStarts >= targetCycles ) {
             Shelly.call("Switch.set", {'id': 0, 'on': true}); // Auflader anschalten und damit Starten des Ladens
             isCharging = true;
-            noPvSurplusTimeCycles = 0; // Anzahl Zyklen ohne erkanntem PV Überschuss zurücksetzen
-            print("----> Laden... Zyklen: ", pvSurplusTimeCycles, " | ", noPvSurplusTimeCycles);
+            cyclesBeforeLoadingStops = 0;
+            print("----> Laden... Zyklen: ",
+              "Zyklen Start: ", cyclesBeforeLoadingStarts, " | ",
+              "Zyklen Stop: ", cyclesBeforeLoadingStops);
         }
     }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Es wird geladen und das Laden soll weiter gehen 
+    // Es wird geladen und das Laden soll weiter gehen.
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
-    else if( PV.currentPower >= thresholdPvProduction &&       // PV Produktion größer Schwellwert
-             PV.currentPower > LOAD.currentPower &&            // PV Produktion größer Hausverbrauch 
-             STORAGE.chargeLevel >= thresholdStorageLevel &&   // Speicher voller als Schwellwert
-             gridConsumption == false &&                       // Kein Netzbezug             
-             isCharging == true ) {                            // es wird geladen
+    else if( PV.currentPower >= thresholdPvProduction &&       // PV Produktion größer-gleich PV Schwellwert
+             PV.currentPower > LOAD.currentPower &&            // PV Produktion größer Hausverbrauch
+             STORAGE.chargeLevel >= thresholdStorageLevel &&   // Speicherfüllgrad größer-gleich als Speicher Schwellwert        
+             isCharging == true ) {                            // Es wird geladen
                 
-        pvSurplusTimeCycles = pvSurplusTimeCycles + 1; // Überschuss Zyklus Zähler inkrementieren
-        noPvSurplusTimeCycles = 0; // Anzahl Zyklen ohne erkanntem PV Überschuss zurücksetzen
+        cyclesBeforeLoadingStarts = cyclesBeforeLoadingStarts + 1;
+        cyclesBeforeLoadingStops = 0;
         
         // Debug Ausgabe zur Prüfung der Werte
-        print("--> Es wird geladen und das Laden soll weiter gehen: ", pvSurplusTimeCycles, " | ", noPvSurplusTimeCycles);
+        print("--> Es wird geladen und das Laden soll weiter gehen: ",
+              "Zyklen Start: ", cyclesBeforeLoadingStarts, " | ",
+              "Zyklen Stop: ", cyclesBeforeLoadingStops);
     }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Es wird geladen und das Laden soll angehalten werden
+    // Es wird geladen und das Laden soll angehalten werden.
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
-    else if( PV.currentPower < thresholdPvProduction &&   // PV Produktion kleiner Schwellwert
-             isCharging == true ) {                       // es wird geladen
+    else if( PV.currentPower < thresholdPvProduction &&   // PV Produktion kleiner PV Schwellwert
+             isCharging == true ) {                       // Es wird geladen
         
-        // Ohne Überschuss Zyklus Zähler inkrementieren        
-        noPvSurplusTimeCycles = noPvSurplusTimeCycles + 1;        
+        cyclesBeforeLoadingStops = cyclesBeforeLoadingStops + 1;        
 
         // Debug Ausgabe zur Prüfung der Werte
-        print("--> Es wird geladen und das Laden soll angehalten werden: ", pvSurplusTimeCycles, " | ", noPvSurplusTimeCycles);
+        print("--> Es wird geladen und das Laden soll angehalten werden: ",
+              "Zyklen Start: ", cyclesBeforeLoadingStarts, " | ",
+              "Zyklen Stop: ", cyclesBeforeLoadingStops);
 
         // Bei mindestens 2 Zyklen ohne Überschuss wird der Ladevorgang angehalten. Verhindert ständiges an und aus schalten des Aufladers
-        if( noPvSurplusTimeCycles >= cycles ) {
+        if( cyclesBeforeLoadingStops >= targetCycles ) {
             Shelly.call("Switch.set", {'id': 0, 'on': false}); // Auflader abschalten und damit Stoppen des Ladens
             isCharging = false;
-            pvSurplusTimeCycles = 0; // Anzahl Zyklen mit erkanntem PV Überschuss zurücksetzen
-            print("----> Nicht Laden... Zyklen: ", pvSurplusTimeCycles, " | ", noPvSurplusTimeCycles);
+            cyclesBeforeLoadingStarts = 0;
+            print("----> Nicht Laden... Zyklen: ",
+              "Zyklen Start: ", cyclesBeforeLoadingStarts, " | ",
+              "Zyklen Stop: ", cyclesBeforeLoadingStops);
         }
     }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Es wird nicht geladen und das soll auch so bleiben
+    // Es wird nicht geladen und das soll auch so bleiben.
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
-    else if( PV.currentPower < thresholdPvProduction &&   // PV Produktion kleiner Schwellwert
-             isCharging == false ) {                      // es wird nicht geladen
+    else if( PV.currentPower < thresholdPvProduction &&   // PV Produktion kleiner PV Schwellwert
+             isCharging == false ) {                      // Es wird nicht geladen
         
-        noPvSurplusTimeCycles = noPvSurplusTimeCycles + 1; // Ohne Überschuss Zyklus Zähler inkrementieren        
-        pvSurplusTimeCycles = 0; // Anzahl Zyklen mit erkanntem PV Überschuss zurücksetzen
+        cyclesBeforeLoadingStops = cyclesBeforeLoadingStops + 1;
+        cyclesBeforeLoadingStarts = 0;
 
         // Debug Ausgabe zur Prüfung der Werte
-        print("--> Es wird nicht geladen und das soll auch so bleiben: ", pvSurplusTimeCycles, " | ", noPvSurplusTimeCycles);
+        print("--> Es wird nicht geladen und das soll auch so bleiben: ",
+              "Zyklen Start: ", cyclesBeforeLoadingStarts, " | ",
+              "Zyklen Stop: ", cyclesBeforeLoadingStops);
     }
     else {
         print("=*=*=*=*=*=*=*= Dieser Fall sollte nicht auftreten! =*=*=*=*=*=*=*=");
     }
 }
 
+/// SolarEdge Monitoring API aufrufen, Messwerte abfragen und damit die Fnktion zum schalten des Laders aufrufen
 function process() {  
     print("===================================================================================");
     print("Prozesszyklus gestartet: ", Date());
@@ -144,8 +160,7 @@ function process() {
                                                  jsonData.siteCurrentPowerFlow.GRID,
                                                  jsonData.siteCurrentPowerFlow.LOAD,
                                                  jsonData.siteCurrentPowerFlow.PV,
-                                                 jsonData.siteCurrentPowerFlow.STORAGE);
-                    
+                                                 jsonData.siteCurrentPowerFlow.STORAGE);                    
                     }
                     catch (e) {
                         print("Fehler beim Parsen des JSON:", e, "Antwort:", response.body);
@@ -162,8 +177,9 @@ function process() {
     );
 };
 
+/// Timer starten mit Intervall, Wiederholung und Funktionsaufruf
 Timer.set(
     1000 * 60 * runInterval, // Wiederholung in Millisekunden
-    true, // Timer wiederholen?
+    true, // Timer wiederholen
     process // Funktion die in jedem Zyklus aufgerufen wird
 );
