@@ -1,7 +1,8 @@
 const runInterval = 3; // Skript läuft alle x Minuten
 const cycles = 3; // Anzahl der Zyklen die erreicht werden müssen bis das Laden startet bzw. stopt
-const pvProduction = 3; // definiert die PV Produktion in kW ab der geladen werden kann
-const storageLevel = 10; // definiert den Speicherfüllstand in % ab dem geladen werden kann
+const thresholdPvProduction = 3.5; // definiert die PV Produktion in kW ab der geladen werden kann
+const thresholdDeltaPvLoad = 3; // definiert die Ziel Differenz zwischen PV Produktion und dem Hausverbrauch zum Ladestart
+const thresholdStorageLevel = 20; // definiert den Speicherfüllstand in % ab dem geladen werden kann
 const fromHour = 9; // Stunde ab der die Abfrage der API und starten des Prozesses stattfindet
 const toHour = 20; // Stunde bis zu der die Abfrage der API und starten des Prozesses stattfindet
 let pvSurplusTimeCycles = 0; // Anzahl Timer Zyklen bevor das Laden startet
@@ -13,18 +14,32 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
     gridFeedIn = connections.some(function(conn) {
         return conn.from === "LOAD" && conn.to === "Grid";
     });
+    
+    // Abfrage ob Netzbezug vorliegt
+    gridConsumption = connections.some(function(conn) {
+        return conn.from === "GRID" && conn.to === "Load";
+    });    
+    
+    // definiert die aktuelle Differenz zwischen PV Produktion und dem Hausverbrauch    
+    currentDeltaPvLoad = PV.currentPower - LOAD.currentPower;
 
     // Ausgabe der Monitoring Werte
-    print("Grid: ", GRID.currentPower, "kW | ", // Netz aktuelle Leistung
-          "Load: ", LOAD.currentPower, "kW | ", // Verbrauch aktuelle Leistung
-          "PV: ", PV.currentPower, "kW | ", // PV aktuelle Leistung
-          "StoragePower: ", STORAGE.currentPower, "kW",  // Speicher aktuelle Leistung
-          "StorageChargLevel: ", STORAGE.chargeLevel, "% | ", // Speicher aktueller Ladezustand
-          "GridFeedIn : ", gridFeedIn ? "YES" : "NO"); // Netzeinspeisung vorhanden oder nicht
+    print("Grid: ", GRID.currentPower, "kW | ",                      // Netz aktuelle Leistung
+          "Load: ", LOAD.currentPower, "kW | ",                      // Verbrauch aktuelle Leistung
+          "PV: ", PV.currentPower, "kW | ",                          // PV aktuelle Leistung
+          "StorageChargLevel: ", STORAGE.chargeLevel, "% | ",        // Speicher aktueller Ladezustand
+          "GridConsumption : ", gridConsumption ? "YES" : "NO | ",   // Netzbezug vorhanden oder nicht     
+          "GridFeedIn : ", gridFeedIn ? "YES" : "NO");               // Netzeinspeisung vorhanden oder nicht
 
-    // PV Produktion größer 3 KW UND Speicher voller als 10% UND wird nicht geladen
-    if( PV.currentPower >= pvProduction && STORAGE.chargeLevel >= storageLevel && isCharging == false ) {
-        // Es wird nicht geladen und das Laden soll starten
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Es wird nicht geladen und das Laden soll starten
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
+    if( PV.currentPower >= thresholdPvProduction &&       // PV Produktion größer Schwellwert
+        PV.currentPower > LOAD.currentPower &&            // PV Produktion größer Hausverbrauch     
+        STORAGE.chargeLevel >= thresholdStorageLevel &&   // Speicher voller als Schwellwert
+        currentDeltaPvLoad >= thresholdDeltaPvLoad &&     // Delta zwischen PV Produktion und Hausverbrauch größer Schwellwert
+        gridConsumption == false &&                       // Kein Netzbezug
+        isCharging == false ) {                           // es wird nicht geladen
         
         // Überschuss Zyklus Zähler inkrementieren
         pvSurplusTimeCycles = pvSurplusTimeCycles + 1;
@@ -40,9 +55,14 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
             print("----> Laden... Zyklen: ", pvSurplusTimeCycles, " | ", noPvSurplusTimeCycles);
         }
     }
-    // PV Produktion größer 3 KW UND Speicher voller als 10% UND es wird geladen    
-    else if( PV.currentPower >= pvProduction && STORAGE.chargeLevel >= storageLevel && isCharging == true ) {    
-        // Es wird geladen und das Laden soll weiter gehen 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Es wird geladen und das Laden soll weiter gehen 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
+    else if( PV.currentPower >= thresholdPvProduction &&       // PV Produktion größer Schwellwert
+             PV.currentPower > LOAD.currentPower &&            // PV Produktion größer Hausverbrauch 
+             STORAGE.chargeLevel >= thresholdStorageLevel &&   // Speicher voller als Schwellwert
+             gridConsumption == false &&                       // Kein Netzbezug             
+             isCharging == true ) {                            // es wird geladen
                 
         pvSurplusTimeCycles = pvSurplusTimeCycles + 1; // Überschuss Zyklus Zähler inkrementieren
         noPvSurplusTimeCycles = 0; // Anzahl Zyklen ohne erkanntem PV Überschuss zurücksetzen
@@ -50,9 +70,11 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
         // Debug Ausgabe zur Prüfung der Werte
         print("--> Es wird geladen und das Laden soll weiter gehen: ", pvSurplusTimeCycles, " | ", noPvSurplusTimeCycles);
     }
-    // PV Produktion kleiner 3 KW UND es wird geladen
-    else if( PV.currentPower < pvProduction && isCharging == true ) {    
-        // Es wird geladen und das Laden soll angehalten werden
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Es wird geladen und das Laden soll angehalten werden
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
+    else if( PV.currentPower < thresholdPvProduction &&   // PV Produktion kleiner Schwellwert
+             isCharging == true ) {                       // es wird geladen
         
         // Ohne Überschuss Zyklus Zähler inkrementieren        
         noPvSurplusTimeCycles = noPvSurplusTimeCycles + 1;        
@@ -68,9 +90,11 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
             print("----> Nicht Laden... Zyklen: ", pvSurplusTimeCycles, " | ", noPvSurplusTimeCycles);
         }
     }
-    // PV Produktion kleiner 3 KW UND es wird nicht geladen
-    else if( PV.currentPower < pvProduction && isCharging == false ) {    
-        // Es wird nicht geladen und das soll auch so bleiben
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Es wird nicht geladen und das soll auch so bleiben
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
+    else if( PV.currentPower < thresholdPvProduction &&   // PV Produktion kleiner Schwellwert
+             isCharging == false ) {                      // es wird nicht geladen
         
         noPvSurplusTimeCycles = noPvSurplusTimeCycles + 1; // Ohne Überschuss Zyklus Zähler inkrementieren        
         pvSurplusTimeCycles = 0; // Anzahl Zyklen mit erkanntem PV Überschuss zurücksetzen
