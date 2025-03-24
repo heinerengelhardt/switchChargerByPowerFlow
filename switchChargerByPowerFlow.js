@@ -1,13 +1,13 @@
-const runInterval = 3; // Intervall in Minuten in dem das Skript läuft
-const cycles = 3; // Anzahl der Zyklen die erreicht werden müssen bis das Laden startet bzw. stopt
-const thresholdPvProduction = 3.5; // definiert die PV Produktion in kW ab der geladen werden kann
-const thresholdDeltaPvLoad = 3; // definiert die Ziel Differenz zwischen PV Produktion und dem Hausverbrauch zum Ladestart
-const thresholdStorageLevel = 20; // definiert den Speicherfüllstand in % ab dem geladen werden kann
-const fromHour = 9; // Stunde ab der die Abfrage der API und starten des Prozesses stattfindet
-const toHour = 20; // Stunde bis zu der die Abfrage der API und starten des Prozesses stattfindet
-let pvSurplusTimeCycles = 0; // Anzahl Timer Zyklen bevor das Laden startet
-let noPvSurplusTimeCycles = 0; // Anzahl Timer Zyklen bevor das Laden stoppt
-let isCharging = false; // Ladestatus "wird geladen" oder "wird nicht geladen"
+const runInterval = 3;               // Intervall in Minuten in dem das Skript läuft
+const cycles = 3;                    // Anzahl der Zyklen die erreicht werden müssen bis das Laden startet bzw. stopt
+const thresholdPvProduction = 3.5;   // definiert die PV Produktion in kW ab der geladen werden kann
+const thresholdDeltaPvLoad = 3;      // definiert die Ziel Differenz zwischen PV Produktion und dem Hausverbrauch zum Ladestart
+const thresholdStorageLevel = 20;    // definiert den Speicherfüllstand in % ab dem geladen werden kann
+const fromHour = 9;                  // Stunde ab der die Abfrage der API und starten des Prozesses stattfindet
+const toHour = 20;                   // Stunde bis zu der die Abfrage der API und starten des Prozesses stattfindet
+let pvSurplusTimeCycles = 0;         // Anzahl Timer Zyklen bevor das Laden startet
+let noPvSurplusTimeCycles = 0;       // Anzahl Timer Zyklen bevor das Laden stoppt
+let isCharging = false;              // Ladestatus "wird geladen" oder "wird nicht geladen"
 
 function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
     // Abfrage ob Netzeinspeisung vorliegt
