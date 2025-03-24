@@ -22,6 +22,6 @@ Das Skript startet einen Timer der in einem konfigurierbarem Intervall läuft, d
  + Nachdem 3 Zyklen mit folgenden Bedingungen erreicht sind:
     + die aktuelle PV Produktion ist kleiner eines Schwellwerts. Der Schwellwert ist der Ladeleistung des Ladeziegel (3 kW) plus durchschnittlicher Hausverbrauch (0.5 kW) gleichgesetzt, also bei 3.5 kW.
 
-## NUtzung
+## Nutzungshinweise
 + Die Variablen `siteId` und `apiKey` sind für den API Aufruf mit korrekten Werten zu ersetzen.
 + Die globalen Variablen können nach Bedarf angepasst werden.
