@@ -1,16 +1,17 @@
 /// Globale Variablen
-const runInterval = 3;               // Intervall in Minuten in dem das Skript ausgeführt wird
-const fromHour = 9;                  // Stunde ab der die Abfrage der API und starten des Prozesses stattfindet
-const toHour = 20;                   // Stunde bis zu der die Abfrage der API und starten des Prozesses stattfindet
+const runInterval = 3;                      // Intervall in Minuten in dem das Skript ausgeführt wird
+const runFromHour = 9;                      // Stunde ab der die Abfrage der API und starten des Prozesses stattfindet
+const runToHour = 20;                       // Stunde bis zu der die Abfrage der API und starten des Prozesses stattfindet
 
-const thresholdPvProduction = 3.5;   // definiert die PV Produktion in kW ab der geladen werden kann
-const thresholdDeltaPvLoad = 3;      // definiert die Ziel Differenz zwischen PV Produktion und dem Hausverbrauch zum Ladestart
-const thresholdStorageLevel = 20;    // definiert den Speicherfüllstand in % ab dem geladen werden kann
+const minPvProduction = 3.2;                // definiert die PV Produktion in kW ab der geladen werden kann
+const minDeltaPvLoad = 3;                   // definiert die Ziel Differenz zwischen PV Produktion und dem Hausverbrauch zum Ladestart
+const minStorageLevelBeforeLoading = 20;    // definiert den Speicherfüllstand in % ab dem geladen werden kann
+const minStorageLevelWhileLoading = 50;     // definiert den Speicherfüllstand in % bei dem weiter geladen werden kann
 
-const targetCycles = 3;              // Anzahl der Zyklen die erreicht werden müssen bis das Laden startet bzw. stopt
-let cyclesBeforeLoadingStarts = 0;   // Anzahl Timer Zyklen bevor das Laden starten soll
-let cyclesBeforeLoadingStops = 0;    // Anzahl Timer Zyklen bevor das Laden stoppen soll
-let isCharging = false;              // Ladestatus "wird geladen" oder "wird nicht geladen"
+const targetCycles = 3;                     // Anzahl der Zyklen die erreicht werden müssen bis das Laden startet bzw. stopt
+let cyclesBeforeLoadingStarts = 0;          // Anzahl Timer Zyklen bevor das Laden starten soll
+let cyclesBeforeLoadingStops = 0;           // Anzahl Timer Zyklen bevor das Laden stoppen soll
+let isCharging = false;                     // Ladestatus "wird geladen" oder "wird nicht geladen"
 
 /// Nach definierten Parametern (Hausverbruach, Überschuss, etc.) den Auflader "an"" oder "aus"" schalten
 function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
@@ -38,11 +39,11 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Es wird nicht geladen und das Laden soll starten.
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
-    if( PV.currentPower >= thresholdPvProduction &&       // PV Produktion größer-gleich PV Schwellwert
-        PV.currentPower > LOAD.currentPower &&            // PV Produktion größer Hausverbrauch
-        currentDeltaPvLoad >= thresholdDeltaPvLoad &&     // Delta zwischen PV Produktion und Hausverbrauch größer-gleich Delta Schwellwert
-        STORAGE.chargeLevel >= thresholdStorageLevel &&   // Speicherfüllgrad größer-gleich als Speicher Schwellwert        
-        isCharging == false ) {                           // Es wird nicht geladen
+    if( PV.currentPower >= minPvProduction &&                    // PV Produktion größer-gleich PV Schwellwert
+        PV.currentPower > LOAD.currentPower &&                   // PV Produktion größer Hausverbrauch
+        currentDeltaPvLoad >= minDeltaPvLoad &&                  // Delta zwischen PV Produktion und Hausverbrauch größer-gleich Delta Schwellwert
+        STORAGE.chargeLevel >= minStorageLevelBeforeLoading &&   // Speicherfüllgrad größer-gleich als Speicher Schwellwert vor Laden
+        isCharging == false ) {                                  // Es wird nicht geladen
         
         cyclesBeforeLoadingStarts = cyclesBeforeLoadingStarts + 1;
         
@@ -65,11 +66,10 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Es wird geladen und das Laden soll weiter gehen.
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
-    else if( PV.currentPower >= thresholdPvProduction &&       // PV Produktion größer-gleich PV Schwellwert
-             PV.currentPower > LOAD.currentPower &&            // PV Produktion größer Hausverbrauch
-             STORAGE.chargeLevel >= thresholdStorageLevel &&   // Speicherfüllgrad größer-gleich als Speicher Schwellwert        
-             isCharging == true ) {                            // Es wird geladen
-                
+    else if( PV.currentPower >= minPvProduction &&                   // PV Produktion größer-gleich PV Schwellwert
+             STORAGE.chargeLevel >= minStorageLevelWhileLoading &&   // Speicherfüllgrad größer-gleich als Speicher Schwellwert während Laden
+             isCharging == true ) {                                  // Es wird geladen
+                               
         cyclesBeforeLoadingStarts = cyclesBeforeLoadingStarts + 1;
         cyclesBeforeLoadingStops = 0;
         
@@ -82,8 +82,8 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Es wird geladen und das Laden soll angehalten werden.
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
-    else if( PV.currentPower < thresholdPvProduction &&   // PV Produktion kleiner PV Schwellwert
-             isCharging == true ) {                       // Es wird geladen
+    else if( PV.currentPower < minPvProduction &&   // PV Produktion kleiner PV Schwellwert
+             isCharging == true ) {                 // Es wird geladen
         
         cyclesBeforeLoadingStops = cyclesBeforeLoadingStops + 1;        
 
@@ -106,8 +106,8 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Es wird nicht geladen und das soll auch so bleiben.
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
-    else if( PV.currentPower < thresholdPvProduction &&   // PV Produktion kleiner PV Schwellwert
-             isCharging == false ) {                      // Es wird nicht geladen
+    else if( PV.currentPower < minPvProduction &&   // PV Produktion kleiner PV Schwellwert
+             isCharging == false ) {                // Es wird nicht geladen
         
         cyclesBeforeLoadingStops = cyclesBeforeLoadingStops + 1;
         cyclesBeforeLoadingStarts = 0;
@@ -117,8 +117,8 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
               "Zyklen Start: ", cyclesBeforeLoadingStarts, " | ",
               "Zyklen Stop: ", cyclesBeforeLoadingStops);
     }
-    else {
-        print("=*=*=*=*=*=*=*= Dieser Fall sollte nicht auftreten! =*=*=*=*=*=*=*=");
+    else {    
+        print("=*=*=*=*=*=*=*= Dieser Fall ist aktuell nicht abgedeckt! =*=*=*=*=*=*=*=");        
     }
 }
 
@@ -128,7 +128,7 @@ function process() {
     print("Prozesszyklus gestartet: ", Date());
 
     // Soll am Tag nur in einem definiertem Zeitfenster laufen und ausserhalb abgeschaltet sein
-    if( !(new Date().getHours() >= fromHour  && new Date().getHours() < toHour ) ) {
+    if( !(new Date().getHours() >= runFromHour  && new Date().getHours() < runToHour ) ) {
         print("Ladezeitruamm noch nicht erreich: ", Date());
         Shelly.call("Switch.set", {'id': 0, 'on': false}); // Auflader abschalten und damit Stoppen des Ladens
         isCharging = false;
@@ -160,7 +160,8 @@ function process() {
                                                  jsonData.siteCurrentPowerFlow.GRID,
                                                  jsonData.siteCurrentPowerFlow.LOAD,
                                                  jsonData.siteCurrentPowerFlow.PV,
-                                                 jsonData.siteCurrentPowerFlow.STORAGE);                    
+                                                 jsonData.siteCurrentPowerFlow.STORAGE);
+                    
                     }
                     catch (e) {
                         print("Fehler beim Parsen des JSON:", e, "Antwort:", response.body);
