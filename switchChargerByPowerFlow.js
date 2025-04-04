@@ -146,7 +146,7 @@ function process() {
 
     // Soll am Tag nur in einem definiertem Zeitfenster laufen und ausserhalb abgeschaltet sein
     if( !(new Date().getHours() >= runFromHour  && new Date().getHours() < runToHour ) ) {
-        print("Ladezeitruamm noch nicht erreich: ", Date());
+        print("Ladezeitruamm noch nicht erreicht: ", Date());
         Shelly.call("Switch.set", {'id': 0, 'on': false}); // Auflader abschalten und damit Stoppen des Ladens
         isCharging = false;
         return;
