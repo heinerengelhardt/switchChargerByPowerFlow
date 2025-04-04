@@ -3,10 +3,13 @@ const runInterval = 3;                      // Intervall in Minuten in dem das S
 const runFromHour = 9;                      // Stunde ab der die Abfrage der API und starten des Prozesses stattfindet
 const runToHour = 20;                       // Stunde bis zu der die Abfrage der API und starten des Prozesses stattfindet
 
-const minPvProduction = 3.2;                // definiert die PV Produktion in kW ab der geladen werden kann
+const minPvProductionBeforeLoading = 3.2;   // definiert die PV Produktion in kW ab der geladen werden kann
+const minPvProductionWhileLoading = 3.2;    // definiert die PV Produktion in kW ab der weiter geladen werden kann
+const minPvProductionFinalLoading = 2;      // definiert die PV Produktion in kW ab der immernoch weiter geladen werden kann
 const minDeltaPvLoad = 3;                   // definiert die Ziel Differenz zwischen PV Produktion und dem Hausverbrauch zum Ladestart
 const minStorageLevelBeforeLoading = 20;    // definiert den Speicherfüllstand in % ab dem geladen werden kann
 const minStorageLevelWhileLoading = 50;     // definiert den Speicherfüllstand in % bei dem weiter geladen werden kann
+const minStorageLevelFinalLoading = 90;     // definiert den Speicherfüllstand in % bei dem immernoch weiter geladen werden kann
 
 const targetCycles = 3;                     // Anzahl der Zyklen die erreicht werden müssen bis das Laden startet bzw. stopt
 let cyclesBeforeLoadingStarts = 0;          // Anzahl Timer Zyklen bevor das Laden starten soll
@@ -39,7 +42,7 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Es wird nicht geladen und das Laden soll starten.
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
-    if( PV.currentPower >= minPvProduction &&                    // PV Produktion größer-gleich PV Schwellwert
+    if( PV.currentPower >= minPvProductionBeforeLoading &&       // PV Produktion größer-gleich PV Schwellwert
         PV.currentPower > LOAD.currentPower &&                   // PV Produktion größer Hausverbrauch
         currentDeltaPvLoad >= minDeltaPvLoad &&                  // Delta zwischen PV Produktion und Hausverbrauch größer-gleich Delta Schwellwert
         STORAGE.chargeLevel >= minStorageLevelBeforeLoading &&   // Speicherfüllgrad größer-gleich als Speicher Schwellwert vor Laden
@@ -57,33 +60,47 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
             Shelly.call("Switch.set", {'id': 0, 'on': true}); // Auflader anschalten und damit Starten des Ladens
             isCharging = true;
             cyclesBeforeLoadingStops = 0;
-            print("----> Laden... Zyklen: ",
+            print("----> Laden...: ",
               "Zyklen Start: ", cyclesBeforeLoadingStarts, " | ",
               "Zyklen Stop: ", cyclesBeforeLoadingStops);
         }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Es wird geladen und das Laden soll weiter gehen.
+    // Es wird geladen und das Laden soll weiter gehen, trotz höherem Hausverbruach mal zwischendurch
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
-    else if( PV.currentPower >= minPvProduction &&                   // PV Produktion größer-gleich PV Schwellwert
+    else if( PV.currentPower >= minPvProductionWhileLoading &&       // PV Produktion größer-gleich PV Schwellwert
              STORAGE.chargeLevel >= minStorageLevelWhileLoading &&   // Speicherfüllgrad größer-gleich als Speicher Schwellwert während Laden
              isCharging == true ) {                                  // Es wird geladen
-                               
         cyclesBeforeLoadingStarts = cyclesBeforeLoadingStarts + 1;
         cyclesBeforeLoadingStops = 0;
         
         // Debug Ausgabe zur Prüfung der Werte
-        print("--> Es wird geladen und das Laden soll weiter gehen: ",
+        print("--> Es wird geladen und das Laden soll Zwischendurch weiter gehen: ",
               "Zyklen Start: ", cyclesBeforeLoadingStarts, " | ",
               "Zyklen Stop: ", cyclesBeforeLoadingStops);
     }
+    
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Es wird geladen und das Laden soll weiter gehen, auch gegen Abend wenn die PV Leistung etwas geringer aber Speicher voller ist
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
+    else if( PV.currentPower >= minPvProductionFinalLoading &&       // PV Produktion größer-gleich PV Schwellwert
+             STORAGE.chargeLevel >= minStorageLevelFinalLoading &&   // Speicherfüllgrad größer-gleich als Speicher Schwellwert während Laden
+             isCharging == true ) {                                  // Es wird geladen
+        cyclesBeforeLoadingStarts = cyclesBeforeLoadingStarts + 1;
+        cyclesBeforeLoadingStops = 0;
+        
+        // Debug Ausgabe zur Prüfung der Werte
+        print("--> Es wird geladen und das Laden soll Abends weiter gehen: ",
+              "Zyklen Start: ", cyclesBeforeLoadingStarts, " | ",
+              "Zyklen Stop: ", cyclesBeforeLoadingStops);
+    }    
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Es wird geladen und das Laden soll angehalten werden.
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
-    else if( PV.currentPower < minPvProduction &&   // PV Produktion kleiner PV Schwellwert
-             isCharging == true ) {                 // Es wird geladen
+    else if( PV.currentPower < minPvProductionWhileLoading &&    // PV Produktion kleiner PV Schwellwert
+             isCharging == true ) {                              // Es wird geladen
         
         cyclesBeforeLoadingStops = cyclesBeforeLoadingStops + 1;        
 
@@ -97,7 +114,7 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
             Shelly.call("Switch.set", {'id': 0, 'on': false}); // Auflader abschalten und damit Stoppen des Ladens
             isCharging = false;
             cyclesBeforeLoadingStarts = 0;
-            print("----> Nicht Laden... Zyklen: ",
+            print("----> Nicht Laden...: ",
               "Zyklen Start: ", cyclesBeforeLoadingStarts, " | ",
               "Zyklen Stop: ", cyclesBeforeLoadingStops);
         }
@@ -106,8 +123,8 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Es wird nicht geladen und das soll auch so bleiben.
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
-    else if( PV.currentPower < minPvProduction &&   // PV Produktion kleiner PV Schwellwert
-             isCharging == false ) {                // Es wird nicht geladen
+    else if( PV.currentPower < minPvProductionBeforeLoading &&   // PV Produktion kleiner PV Schwellwert
+             isCharging == false ) {                             // Es wird nicht geladen
         
         cyclesBeforeLoadingStops = cyclesBeforeLoadingStops + 1;
         cyclesBeforeLoadingStarts = 0;
@@ -136,9 +153,9 @@ function process() {
     }
 
     // Auth. Credentials für API Aufruf
-    let siteId = "mysiteId";
+    let siteId = "4711";
     let apiFunction = "currentPowerFlow";
-    let apiKey = "myapiKey";    
+    let apiKey = "0815";    
 
     // URL der SE REST-API    
     let apiUrl = "https://monitoringapi.solaredge.com/site/" + siteId + "/" + apiFunction + ".json?api_key=" + apiKey;
