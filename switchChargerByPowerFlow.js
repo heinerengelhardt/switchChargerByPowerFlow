@@ -1,6 +1,6 @@
 /// Globale Variablen
 const runInterval = 3;                      // Intervall in Minuten in dem das Skript ausgeführt wird
-const runFromHour = 9;                      // Stunde ab der die Abfrage der API und starten des Prozesses stattfindet
+const runFromHour = 10;                     // Stunde ab der die Abfrage der API und starten des Prozesses stattfindet
 const runToHour = 20;                       // Stunde bis zu der die Abfrage der API und starten des Prozesses stattfindet
 
 const minPvProductionBeforeLoading = 3.2;   // definiert die PV Produktion in kW ab der geladen werden kann
