@@ -3,12 +3,14 @@ const runInterval = 3;                      // Intervall in Minuten in dem das S
 const runFromHour = 10;                     // Stunde ab der die Abfrage der API und starten des Prozesses stattfindet
 const runToHour = 20;                       // Stunde bis zu der die Abfrage der API und starten des Prozesses stattfindet
 
-const minPvProductionBeforeLoading = 3.2;   // definiert die PV Produktion in kW ab der geladen werden kann
-const minPvProductionWhileLoading = 3.2;    // definiert die PV Produktion in kW ab der weiter geladen werden kann
-const minPvProductionFinalLoading = 2;      // definiert die PV Produktion in kW ab der immernoch weiter geladen werden kann
 const minDeltaPvLoad = 3;                   // definiert die Ziel Differenz zwischen PV Produktion und dem Hausverbrauch zum Ladestart
+const minPvProductionBeforeLoading = 3.2;   // definiert die PV Produktion in kW ab der geladen werden kann
 const minStorageLevelBeforeLoading = 20;    // definiert den Speicherfüllstand in % ab dem geladen werden kann
+
+const minPvProductionWhileLoading = 3.2;    // definiert die PV Produktion in kW ab der weiter geladen werden kann
 const minStorageLevelWhileLoading = 50;     // definiert den Speicherfüllstand in % bei dem weiter geladen werden kann
+
+const minPvProductionFinalLoading = 2;      // definiert die PV Produktion in kW ab der immernoch weiter geladen werden kann
 const minStorageLevelFinalLoading = 90;     // definiert den Speicherfüllstand in % bei dem immernoch weiter geladen werden kann
 
 const targetCycles = 3;                     // Anzahl der Zyklen die erreicht werden müssen bis das Laden startet bzw. stopt
@@ -55,7 +57,7 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
               "Zyklen Start: ", cyclesBeforeLoadingStarts, " | ",
               "Zyklen Stop: ", cyclesBeforeLoadingStops);
 
-        // PV Überschuss sollte stabil über mindestens 2 Zyklen sein um den Ladevorgang zu starten. Verhindert ständiges an und aus schalten des Aufladers
+        // PV Überschuss sollte stabil über mindestens n Zyklen sein um den Ladevorgang zu starten. Verhindert ständiges an und aus schalten des Aufladers
         if( cyclesBeforeLoadingStarts >= targetCycles ) {
             Shelly.call("Switch.set", {'id': 0, 'on': true}); // Auflader anschalten und damit Starten des Ladens
             isCharging = true;
@@ -109,7 +111,7 @@ function switchChargerByPowerFlow(connections, GRID, LOAD, PV, STORAGE) {
               "Zyklen Start: ", cyclesBeforeLoadingStarts, " | ",
               "Zyklen Stop: ", cyclesBeforeLoadingStops);
 
-        // Bei mindestens 2 Zyklen ohne Überschuss wird der Ladevorgang angehalten. Verhindert ständiges an und aus schalten des Aufladers
+        // Bei mindestens n Zyklen ohne Überschuss wird der Ladevorgang angehalten. Verhindert ständiges an und aus schalten des Aufladers
         if( cyclesBeforeLoadingStops >= targetCycles ) {
             Shelly.call("Switch.set", {'id': 0, 'on': false}); // Auflader abschalten und damit Stoppen des Ladens
             isCharging = false;
@@ -153,9 +155,9 @@ function process() {
     }
 
     // Auth. Credentials für API Aufruf
-    let siteId = "4711";
+    let siteId = "<my_siteId>";
     let apiFunction = "currentPowerFlow";
-    let apiKey = "0815";    
+    let apiKey = "<my_apiKey>";    
 
     // URL der SE REST-API    
     let apiUrl = "https://monitoringapi.solaredge.com/site/" + siteId + "/" + apiFunction + ".json?api_key=" + apiKey;
