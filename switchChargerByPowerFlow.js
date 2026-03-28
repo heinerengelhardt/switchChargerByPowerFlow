@@ -1,5 +1,5 @@
 /// ===================================================================================
-/// PV-Überschuss Laden – State Machine Variante
+/// PV-Überschuss Laden
 /// ===================================================================================
 
 /// Konfiguration: Timing
@@ -64,13 +64,29 @@ function shouldKeepCharging(PV, STORAGE) {
 /// ===================================================================================
 
 function chargerOn() {
-    Shelly.call("Switch.set", { 'id': 0, 'on': true });
-    print("AKTION: Lader EIN");
+    Shelly.call("Switch.set", { 'id': 0, 'on': true },
+        function(result, error_code, error_msg) {
+            if (error_code !== 0) {
+                print("FEHLER: Lader EIN fehlgeschlagen: " + error_code + " " + error_msg);
+                state = STATE_PENDING_START;
+                cycleCounter = 0;
+            } else {
+                print("AKTION: Lader EIN");
+            }
+        }
+    );
 }
 
 function chargerOff() {
-    Shelly.call("Switch.set", { 'id': 0, 'on': false });
-    print("AKTION: Lader AUS");
+    Shelly.call("Switch.set", { 'id': 0, 'on': false },
+        function(result, error_code, error_msg) {
+            if (error_code !== 0) {
+                print("FEHLER: Lader AUS fehlgeschlagen: " + error_code + " " + error_msg);
+            } else {
+                print("AKTION: Lader AUS");
+            }
+        }
+    );
 }
 
 /// ===================================================================================
@@ -196,7 +212,10 @@ function process() {
         if (state === STATE_CHARGING || state === STATE_PENDING_STOP) {
             chargerOff();
         }
-        transition(STATE_IDLE);
+        if (state !== STATE_IDLE) {
+            transition(STATE_IDLE);
+        }
+        apiErrorCount = 0;
         return;
     }
 
@@ -219,6 +238,10 @@ function process() {
             try {
                 var data = JSON.parse(response.body);
                 var flow = data.siteCurrentPowerFlow;
+                if (!flow || !flow.PV || !flow.LOAD || !flow.STORAGE || !flow.connections) {
+                    handleApiError("API-Antwort unvollständig: PV/LOAD/STORAGE/connections fehlt");
+                    return;
+                }
                 processState(flow.PV, flow.LOAD, flow.STORAGE, flow.connections);
             } catch (e) {
                 handleApiError("JSON Parse: " + e);
