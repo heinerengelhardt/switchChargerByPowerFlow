@@ -7,7 +7,7 @@
 ## Grober Ablauf
 Das Skript implementiert eine State Machine mit vier Zuständen, die in einem konfigurierbaren Intervall die Monitoring API abfragt und gemäß dem Messergebnis sowie den konfigurierbaren Parametern (Hausverbrauch, Überschuss, Speicherfüllstand) den Auflader an oder aus schaltet.
 
-## Zustandsmodell
+## Zustandsmodell (State Machine)
 
 ```
 IDLE  →  PENDING_START  →  CHARGING  →  PENDING_STOP  →  IDLE
@@ -54,8 +54,24 @@ IDLE  →  PENDING_START  →  CHARGING  →  PENDING_STOP  →  IDLE
  + **Zeitfenster:** Außerhalb des Ladezeitraums wird der API-Fehlerzähler zurückgesetzt, damit keine veralteten Fehler über Nacht mitgenommen werden.
 
 ## Parametrisierung
- + Die Variablen `siteId` und `apiKey` sind für den API Aufruf mit korrekten Werten zu ersetzen.
- + Die globalen Variablen können nach Bedarf angepasst werden:
+### API-Credentials (Shelly KVS)
+Die SolarEdge API-Credentials werden nicht im Skript-Quellcode hinterlegt, sondern im Shelly Key-Value Store (KVS). Einmalig per Browser einrichten:
+
+```
+http://<shelly-ip>/rpc/KVS.Set?key="solarEdgeSiteId"&value="<deine_site_id>"
+http://<shelly-ip>/rpc/KVS.Set?key="solarEdgeApiKey"&value="<dein_api_key>"
+```
+
+Zur Prüfung ob die Werte gesetzt sind:
+
+```
+http://<shelly-ip>/rpc/KVS.GetMany
+```
+
+**Hinweis:** Der KVS ist kein echtes Secret-Management. Wer Zugriff auf die Shelly Web-UI oder das lokale Netz hat, kann die Werte über `KVS.GetMany` auslesen. Der Vorteil ist, dass die Credentials nicht im Skript-Quellcode sichtbar sind.
+
+### Schwellwerte
+Die globalen Variablen im Skript können nach Bedarf angepasst werden:
 
 | Variable | Standardwert | Beschreibung |
 |---|---|---|
