@@ -1,5 +1,5 @@
 /// ===================================================================================
-/// PV-Überschuss Laden
+/// PV-Überschuss Laden – State Machine Variante
 /// ===================================================================================
 
 /// Konfiguration: Timing
@@ -219,9 +219,28 @@ function process() {
         return;
     }
 
-    // SolarEdge API abrufen
-    var siteId = "<my_siteId>";
-    var apiKey = "<my_apiKey>";
+    // SolarEdge API-Credentials aus KVS laden und API abrufen
+    Shelly.call("KVS.Get", { key: "solarEdgeSiteId" },
+        function(siteResult, siteErr) {
+            if (siteErr !== 0 || !siteResult) {
+                handleApiError("KVS: solarEdgeSiteId nicht gefunden");
+                return;
+            }
+            Shelly.call("KVS.Get", { key: "solarEdgeApiKey" },
+                function(keyResult, keyErr) {
+                    if (keyErr !== 0 || !keyResult) {
+                        handleApiError("KVS: solarEdgeApiKey nicht gefunden");
+                        return;
+                    }
+                    fetchSolarEdgeData(siteResult.value, keyResult.value);
+                }
+            );
+        }
+    );
+}
+
+/// SolarEdge API mit Credentials aufrufen
+function fetchSolarEdgeData(siteId, apiKey) {
     var apiUrl = "https://monitoringapi.solaredge.com/site/" + siteId +
                  "/currentPowerFlow.json?api_key=" + apiKey;
 
@@ -251,7 +270,7 @@ function process() {
 }
 
 /// ===================================================================================
-/// Timer starten
+/// Timer starten + initialer Aufruf
 /// ===================================================================================
 
 Timer.set(1000 * 60 * runInterval, true, process);
